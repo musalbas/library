@@ -42,6 +42,7 @@ public class ClientsManager {
     private RequestVerifier verifier;
     
     private ReentrantLock clientsLock = new ReentrantLock();
+    private HashMap<Integer, Boolean> seen = new HashMap<Integer, Boolean>();
 
     public ClientsManager(ServerViewController controller, RequestsTimer timer, RequestVerifier verifier) {
         this.controller = controller;
@@ -259,9 +260,11 @@ public class ClientsManager {
             clientData.getPendingRequests().clear();
         }
 
-        if ((clientData.getLastMessageReceived() == -1) || //first message received or new session (see above)
+        if (!seen.containsKey(request.getSequence()) || (clientData.getLastMessageReceived() == -1) || //first message received or new session (see above)
                 (clientData.getLastMessageReceived() + 1 == request.getSequence()) || //message received is the expected
                 ((request.getSequence() > clientData.getLastMessageReceived()) && !fromClient)) {
+
+            seen.put(request.getSequence(), true);
 
             //it is a new message and I have to verify it's signature
             if (!request.signed
@@ -285,7 +288,7 @@ public class ClientsManager {
             }
         } else {
             //I will not put this message on the pending requests list
-            if (clientData.getLastMessageReceived() >= request.getSequence()) {
+            if (seen.containsKey(request.getSequence()) || clientData.getLastMessageReceived() >= request.getSequence()) {
                 //I already have/had this message
 
                 //send reply if it is available
